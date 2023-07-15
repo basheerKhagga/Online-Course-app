@@ -111,7 +111,9 @@ class Question(models.Model):
     question_text = models.TextField()
     # question grade/mark
     grade = models.IntegerField(default=0)
-     
+    
+    def __str__(self):
+        return self.lesson_id.title[0:100] + " |      question_text = " + self.question_text
 
     # <HINT> A sample model method to calculate if learner get the score of the question
     # def is_get_score(self, selected_ids):

@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from django.http import HttpResponseRedirect
 # <HINT> Import any new Models here
-from .models import Course, Enrollment
+from .models import Course, Enrollment, Question, Choice, Submission
 from django.contrib.auth.models import User
 from django.shortcuts import get_object_or_404, render, redirect
 from django.urls import reverse
@@ -110,18 +110,31 @@ def enroll(request, course_id):
          # Collect the selected choices from exam form
          # Add each selected choice object to the submission object
          # Redirect to show_exam_result with the submission id
-#def submit(request, course_id):
+def submit(request, course_id):
+    user = request.user # get the current logged in user object
+    course = get_object_or_404(Course, id=course_id) # get the course object with the given id or raise a 404 error if not found
+    enrollment = get_object_or_404(Enrollment, user=user, course=course)
+    submission = Submission.objects.create(enrollment=enrollment)
+    submitted_answers = extract_answers(request)
+    for choice_id in submitted_answers:
+        choice = get_object_or_404(Choice, id=choice_id)
+        submission.choices.add(choice) # add the choice object to the choices field of the submission object
 
+    return redirect('onlinecourse:show_exam_result', course_id=course_id, submission_id=submission.id)
 
 # <HINT> A example method to collect the selected choices from the exam form from the request object
-#def extract_answers(request):
-#    submitted_anwsers = []
-#    for key in request.POST:
-#        if key.startswith('choice'):
-#            value = request.POST[key]
-#            choice_id = int(value)
-#            submitted_anwsers.append(choice_id)
-#    return submitted_anwsers
+def extract_answers(request):
+   submitted_anwsers = []
+   print(request.POST)
+   for key in request.POST:
+       if key.startswith('choice'):
+           value = request.POST[key]
+           print(key)
+
+           choice_id = int(value)
+           submitted_anwsers.append(choice_id)
+
+   return submitted_anwsers
 
 
 # <HINT> Create an exam result view to check if learner passed exam and show their question results and result for each question,
@@ -130,7 +143,37 @@ def enroll(request, course_id):
         # Get the selected choice ids from the submission record
         # For each selected choice, check if it is a correct answer or not
         # Calculate the total score
-#def show_exam_result(request, course_id, submission_id):
+
+
+def show_exam_result(request, course_id, submission_id):
+    course = get_object_or_404(Course, id=course_id) # get the course object with the given id or raise a 404 error if not found
+    submission = get_object_or_404(Submission, id=submission_id) # get the submission object with the given id or raise a 404 error if not found
+    # Get the selected choice ids from the submission record
+    selected_ids = submission.choices.values_list('id', flat=True) # get a list of choice ids from the choices field of the submission object
+    # For each selected choice, check if it is a correct answer or not
+    correct_ids = [] # a list to store the correct choice ids
+    incorrect_ids = [] # a list to store the incorrect choice ids
+    for choice_id in selected_ids:
+        choice = get_object_or_404(Choice, id=choice_id) # get the choice object with the given id or raise a 404 error if not found
+        if choice.is_correct: # check if the choice is a correct answer
+            correct_ids.append(choice_id) # add the choice id to the correct list
+        else:
+            incorrect_ids.append(choice_id) # add the choice id to the incorrect list
+    # Calculate the total score by adding up the grades for all questions in the course
+    total_score = 0 # a variable to store the total score
+    for question in course.question_set.all(): # loop through all questions in the course
+        total_score += question.grade # add the question grade to the total score
+    # Add the course, selected_ids, correct_ids, incorrect_ids, and total_score to context for rendering HTML page
+    context = {
+        'course': course,
+        'selected_ids': selected_ids,
+        'correct_ids': correct_ids,
+        'incorrect_ids': incorrect_ids,
+        'total_score': total_score,
+    }
+    # Render the exam_result.html template with the context data
+    return render(request, 'onlinecourse/exam_result_bootstrap.html', context)
+
 
 
 

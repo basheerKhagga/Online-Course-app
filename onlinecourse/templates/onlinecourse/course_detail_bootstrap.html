@@ -79,7 +79,7 @@
                 </button>
                 <div id="collapseExample" class="collapse">
                     <div class="card card-body">
-                        <form id="questionform" action="point to a submit view" method="post">
+                        <form id="questionform" action="{% url 'onlinecourse:submit' course.id %}" method="post">
                             <!-- ... for each question in the course ... -->
                             {% for lesson in course.lesson_set.all %}
                                 {% for question in lesson.question_set.all %}
@@ -90,9 +90,9 @@
                                         {% for choice in question.choice_set.all %}
                                             <div class="form-check">
                                                 <label class="form-check-label">
-                                                    <input type="checkbox" name="choice_{{choice.question_id}}"
-                                                        class="form-check-input" id="{{choice.question_id}}"
-                                                        value="{{choice.question_id}}">{{ choice.choice_text }}
+                                                    <input type="checkbox" name="choice_{{choice.choice_text}}"
+                                                        class="form-check-input" id="{{choice.choice_text}}"
+                                                        value="{{choice.choice_text}}">{{ choice.choice_text }}
                                                 </label>
                                             </div>
                                         {% endfor %} 
