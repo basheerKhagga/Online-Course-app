@@ -137,7 +137,7 @@ class Choice(models.Model):
     choice_text = models.CharField(max_length=500)
 
     def __str__(self):
-        return self.question_id.question_text[0:100] + " |      Choice = " + self.choice_text
+        return self.question_id.question_text + " |      Choice = " + self.choice_text
 
 # <HINT> The submission model
 # One enrollment could have multiple submission

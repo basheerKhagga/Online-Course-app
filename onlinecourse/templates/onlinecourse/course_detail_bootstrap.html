@@ -90,9 +90,9 @@
                                         {% for choice in question.choice_set.all %}
                                             <div class="form-check">
                                                 <label class="form-check-label">
-                                                    <input type="checkbox" name="choice_{{choice.choice_text}}"
-                                                        class="form-check-input" id="{{choice.choice_text}}"
-                                                        value="{{choice.choice_text}}">{{ choice.choice_text }}
+                                                    <input type="checkbox" name="userchoice"
+                                                        class="form-check-input" id="userchoice"
+                                                        value="{{ choice }}">{{ choice.choice_text }}
                                                 </label>
                                             </div>
                                         {% endfor %} 

@@ -103,6 +103,14 @@ def enroll(request, course_id):
     return HttpResponseRedirect(reverse(viewname='onlinecourse:course_details', args=(course.id,)))
 
 
+def get_question_text_and_get_choice(value):
+    ans = value.split("|")
+    ques = ans[0]
+    choice_ans = ans[1]
+    choice_ans = choice_ans.split("=")[1]
+    choice_ans=choice_ans[1:]
+    return [ques[:-1], choice_ans]
+
 # <HINT> Create a submit view to create an exam submission record for a course enrollment,
 # you may implement it based on following logic:
          # Get user and course object, then get the associated enrollment object created when the user enrolled the course
@@ -116,25 +124,31 @@ def submit(request, course_id):
     enrollment = get_object_or_404(Enrollment, user=user, course=course)
     submission = Submission.objects.create(enrollment=enrollment)
     submitted_answers = extract_answers(request)
-    for choice_id in submitted_answers:
-        choice = get_object_or_404(Choice, id=choice_id)
-        submission.choices.add(choice) # add the choice object to the choices field of the submission object
+    
+    for value in submitted_answers:
+        ans_list = get_question_text_and_get_choice(value)
+        quesstion = Question.objects.get(question_text=ans_list[0]) 
+        # choices = quesstion.choice_set.all().filter(choice_text=choice_ans)   
+        # print("\n\nValue of choices is ")
+        # print(choices)
+        choice = Choice.objects.get(question_id=quesstion, choice_text=ans_list[1])
+        # print(choice)
+        submission.chocies.add(choice) # add the choice object to the choices field of the submission object
 
-    return redirect('onlinecourse:show_exam_result', course_id=course_id, submission_id=submission.id)
+    return HttpResponseRedirect(reverse(viewname='onlinecourse:result', args=(course.id, submission.id)))
+    # return redirect('onlinecourse:show_exam_result', course_id=course_id, submission_id=submission.id)
 
 # <HINT> A example method to collect the selected choices from the exam form from the request object
 def extract_answers(request):
-   submitted_anwsers = []
-   print(request.POST)
-   for key in request.POST:
-       if key.startswith('choice'):
-           value = request.POST[key]
-           print(key)
+    submitted_anwsers = []
 
-           choice_id = int(value)
-           submitted_anwsers.append(choice_id)
+    for key in request.POST.getlist("userchoice"):
+        submitted_anwsers.append(key)
+        # submitted_anwsers.append(value)
 
-   return submitted_anwsers
+    return submitted_anwsers
+    
+   
 
 
 # <HINT> Create an exam result view to check if learner passed exam and show their question results and result for each question,
@@ -147,25 +161,60 @@ def extract_answers(request):
 
 def show_exam_result(request, course_id, submission_id):
     course = get_object_or_404(Course, id=course_id) # get the course object with the given id or raise a 404 error if not found
+    # print("\n\nCourse : ")
+    # print(course)
     submission = get_object_or_404(Submission, id=submission_id) # get the submission object with the given id or raise a 404 error if not found
     # Get the selected choice ids from the submission record
-    selected_ids = submission.choices.values_list('id', flat=True) # get a list of choice ids from the choices field of the submission object
+    selected_ids = submission.chocies.values_list('id', flat=True) # get a list of choice ids from the choices field of the submission object
     # For each selected choice, check if it is a correct answer or not
+    grade = 0
     correct_ids = [] # a list to store the correct choice ids
     incorrect_ids = [] # a list to store the incorrect choice ids
+
     for choice_id in selected_ids:
         choice = get_object_or_404(Choice, id=choice_id) # get the choice object with the given id or raise a 404 error if not found
+        question = choice.question_id
+        a_ques_choices = question.choice_set.all()
+        choiceGrade = question.grade 
+        count = 0
+        for every_choice in a_ques_choices:
+            if every_choice.is_correct:
+                correct_ids.append(every_choice.id)
+                count += 1
+        if (count == 2):
+            choiceGrade = choiceGrade/2
+        elif (count == 3):
+            choiceGrade = choiceGrade/3
+        elif (count == 4):
+            choiceGrade = choiceGrade/4
+
+
+        # if (count==1):
+        #     grade -= (question.grade/2)
+
         if choice.is_correct: # check if the choice is a correct answer
-            correct_ids.append(choice_id) # add the choice id to the correct list
+            
+            grade += choiceGrade
         else:
             incorrect_ids.append(choice_id) # add the choice id to the incorrect list
     # Calculate the total score by adding up the grades for all questions in the course
     total_score = 0 # a variable to store the total score
-    for question in course.question_set.all(): # loop through all questions in the course
-        total_score += question.grade # add the question grade to the total score
+    # print(course.lesson_set.all())
+
+    for lesson in course.lesson_set.all(): # loop through all questions in the course
+        for question in lesson.question_set.all():
+            total_score += question.grade
+
+    percentage = (grade/total_score) * 100
+    # print("\n\n Grade value : ", grade)
+    #     for question in lesson.question_set.all:
+    #         total_score += question.grade # add the question grade to the total score
     # Add the course, selected_ids, correct_ids, incorrect_ids, and total_score to context for rendering HTML page
     context = {
         'course': course,
+        'grade': grade,
+        'percentage': percentage,
+        'lessons': course.lesson_set.all(),
         'selected_ids': selected_ids,
         'correct_ids': correct_ids,
         'incorrect_ids': incorrect_ids,
